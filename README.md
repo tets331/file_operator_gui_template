@@ -17,5 +17,5 @@ python sample1.py
 4. select Files and click Run button.
 5. If you can see your selected files in terminal, it works as expected. Congrats!
 6. close window
-7. open sample1.py adn modify run_command function which is invoked by Run button as you like.
+7. open sample1.py and modify run_command function which is invoked by Run button as you like.
 

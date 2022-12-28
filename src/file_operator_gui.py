@@ -45,16 +45,17 @@ class FileOperatorGui(object):
 class SelectWindowClass(object):
     def __init__(self, title, selected_folder, run_command):
         self.title = title
+        self.selected_folder = '{}/'.format(selected_folder)
         self.window = None
         self.allfiles = []
-        for cur, d, files in os.walk(selected_folder):
+        for cur, d, files in os.walk(self.selected_folder):
             self.allfiles = self.allfiles + [os.path.join(cur,x) for x in files]
         self.filters = {'value':'', 'case':False}
         self.exfilters = {'value':'', 'case':False}
         self.run_command = run_command
 
     def open_new_window(self, size=(600, 600)):
-        checkboxes = [[sg.Checkbox(x, key=x)] for x in self._filtered_files()]
+        checkboxes = [[sg.Checkbox(x.replace(self.selected_folder,''), key=x)] for x in self._filtered_files()]
         filter_frame = sg.Frame('Filter', [
             [sg.Text('File path contains'), sg.InputText(key='-FILTER-', default_text = self.filters['value']), sg.Checkbox('Case', key='-FILTERCASE-', default=self.filters['case'])],
             [sg.Text('File path does NOT contains'), sg.InputText(key='-EXFILTER-', default_text = self.exfilters['value']), sg.Checkbox('Case', key='-EXFILTERCASE-', default=self.exfilters['case'])],
@@ -63,6 +64,7 @@ class SelectWindowClass(object):
         ])
         layout = [[sg.Button('Check all', key='-CHECK-ALL-'), sg.Button('Uncheck all', key='-UNCHECK-ALL-')],
                   [filter_frame],
+                  [sg.Text('Folder Path:{}'.format(self.selected_folder))],
                   [sg.Column(checkboxes, scrollable=True, size=size)],
                   [sg.Button('Run', key='-RUN-'), sg.Button('Close', key='-CLOSE-')]
                   ]
