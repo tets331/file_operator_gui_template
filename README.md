@@ -3,9 +3,9 @@
 ```
 pip install PySimpleGUI
 ```
-:::note warn
-Note: The version in requirement.txt is supported at least.
-:::
+
+> **Note:**
+> the version in requirement.txt is supported at least.
 
 ## First Step
 1. clone this repository
