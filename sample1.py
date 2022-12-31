@@ -5,8 +5,7 @@ class MyFolderSelectGui(fo_gui.FileOperatorGui):
     def run_command(self, values):
         # This function is invoked, when you push Run button.
         # You can implement anything from here 
-        for filepath in values['selected files']:
-            print(filepath)
+        print(values['current file'])
 
 if __name__ == '__main__':
     my_gui = MyFolderSelectGui()

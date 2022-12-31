@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 
@@ -31,7 +32,7 @@ class FileOperatorGui(object):
         window.close()
 
     def file_select_window(self, selected_folder, title='File Select'):
-        s_window = SelectWindowClass(title, selected_folder, self.run_command)
+        s_window = _SelectWindowClass(title, selected_folder, self.run_command)
         s_window.open_new_window()
 
         while True:
@@ -42,7 +43,9 @@ class FileOperatorGui(object):
     def run_command(self, values):
         raise NotImplementedError
 
-class SelectWindowClass(object):
+class _SelectWindowClass(object):
+    PROGRESS_BAR_MAX = 1000
+
     def __init__(self, title, selected_folder, run_command):
         self.title = title
         self.selected_folder = '{}/'.format(selected_folder)
@@ -56,7 +59,7 @@ class SelectWindowClass(object):
 
     def open_new_window(self, size=(600, 600)):
         checkboxes = [[sg.Checkbox(x.replace(self.selected_folder,''), key=x)] for x in self._filtered_files()]
-        filter_frame = sg.Frame('Filter', [
+        filter_frame = sg.Frame('Filter (white space delimiter)', [
             [sg.Text('File path contains'), sg.InputText(key='-FILTER-', default_text = self.filters['value']), sg.Checkbox('Case', key='-FILTERCASE-', default=self.filters['case'])],
             [sg.Text('File path does NOT contains'), sg.InputText(key='-EXFILTER-', default_text = self.exfilters['value']), sg.Checkbox('Case', key='-EXFILTERCASE-', default=self.exfilters['case'])],
             [sg.Button('Apply', key='-APPLY-FILTER-')],
@@ -66,7 +69,7 @@ class SelectWindowClass(object):
                   [filter_frame],
                   [sg.Text('Folder Path:{}'.format(self.selected_folder))],
                   [sg.Column(checkboxes, scrollable=True, size=size)],
-                  [sg.Button('Run', key='-RUN-'), sg.Button('Close', key='-CLOSE-')]
+                  [sg.Button('Run', key='-RUN-'), sg.Text('', key='-MESSAGE-')]
                   ]
         
         self.window = sg.Window(self.title, layout)
@@ -74,7 +77,7 @@ class SelectWindowClass(object):
     def event_handler(self):
         event, values = self.window.read()
 
-        if event == sg.WINDOW_CLOSED or event == '-CLOSE-':
+        if event == sg.WINDOW_CLOSED:
             return 'Finish'
         
         self.filters['value'] = values['-FILTER-']
@@ -91,13 +94,69 @@ class SelectWindowClass(object):
         elif event == '-APPLY-FILTER-':
             self._reflesh_window()
         elif event == '-RUN-':
-            v = {}
-            v['all files'] = self.allfiles
-            v['filtered files'] = self._filtered_files()
-            v['selected files'] = [x for x in self._filtered_files() if values[x]]
-            self.run_command(v)
+            selected_files = [x for x in self._filtered_files() if values[x]]
+            if selected_files:
+                self.window['-MESSAGE-'].update('Running...', text_color='#000000')
+                self._run(selected_files)
+                self.window['-MESSAGE-'].update('', text_color='#000000')
+            else:
+                self.window['-MESSAGE-'].update('No file selected!!', text_color='#FFBBFF')
 
         return 'Continue'
+
+    def _run(self, selected_files, title='Progress Window'):
+        layout = [
+            [sg.Text('Start', key='-STRTEXT-')],
+            [sg.Text('End', key='-ENDTEXT-')],
+            [sg.Text('Progress', key='-PRGTEXT-')],
+            [sg.Text('File: ', key='-FILETEXT-')],
+            [sg.ProgressBar(max_value = self.PROGRESS_BAR_MAX, key='-PROG-')],
+            [sg.Button('STOP', key='-BUTTON-')]
+        ]
+        p_window =  sg.Window(title, layout)
+        pe, pv = p_window.read(timeout=1)
+        start_time = datetime.datetime.now()
+        p_window['-STRTEXT-'].update('Start {}'.format(start_time.time().strftime('%X')))
+        
+        v = {}
+        v['selected files'] = selected_files
+        sfl = len(v['selected files'])
+
+        for i, f in enumerate(v['selected files'], start=1):
+            v['current file'] = f
+            v['is last?'] = f is selected_files[-1]
+
+            p_window['-FILETEXT-'].update(f)
+            p_window['-PROG-'].update(i/sfl * self.PROGRESS_BAR_MAX)
+            p_window['-PRGTEXT-'].update('Progress:{}/{} ({})%'.format(i, sfl, round((i/sfl)*100)))
+            p_window['-ENDTEXT-'].update('will End {}'.format((start_time + (datetime.datetime.now() - start_time)/i*sfl).time().strftime('%X')))
+            p_window.bring_to_front()
+
+            self.run_command(v)
+
+            pe, pv = p_window.read(timeout=10)
+
+            if pe == sg.WINDOW_CLOSED:
+                break
+            elif pe == '-BUTTON-':
+                stop_stime = datetime.datetime.now()
+                p_window['-PRGTEXT-'].update('Stopped ({}/{})'.format(i, sfl))
+                p_window['-BUTTON-'].update('Restart')
+                pe, pv = p_window.read() # wait for any event (e.g. click close buttton)
+                if pe == '-BUTTON-':
+                    start_time += datetime.datetime.now() - stop_stime
+                    continue
+                elif pe == sg.WINDOW_CLOSED:
+                    break
+            elif v['is last?']:
+                end_time = datetime.datetime.now()
+                p_window['-ENDTEXT-'].update('End {} ({}s)'.format(end_time.time().strftime('%X'), (end_time - start_time).total_seconds()))
+                p_window['-PRGTEXT-'].update('Completed {} files'.format(sfl))
+                p_window['-BUTTON-'].update('CLOSE')
+                p_window.read() # wait for any event (e.g. click close buttton)
+                break
+
+        p_window.close()
 
     def close(self):
         self.window.close()
