@@ -67,6 +67,7 @@ class _SelectWindowClass(object):
         self.allfiles = []
         for cur, d, files in os.walk(self.selected_folder):
             self.allfiles = self.allfiles + [os.path.join(cur,x) for x in files]
+        self.allfiles.sort()
         self.filters = {'value':'', 'case':False}
         self.exfilters = {'value':'', 'case':False}
         self.run_command = run_command
