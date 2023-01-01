@@ -5,14 +5,27 @@ import re
 import PySimpleGUI as sg
 
 class FileOperatorGui(object):
-    def __init__(self):
-        pass
+    def __init__(self, custom_parameters=[]):
+        self.custom_parameters = custom_parameters
 
     def folder_select_window(self, title='Folder Select'):
         layout = [[sg.Text('Folder'), sg.InputText(key='-SELECTED-FOLDER-', enable_events=True), sg.FolderBrowse()],
-                  [sg.Text('Please select target folder', key='-FOLDER-SELECT-MSG-')],
-                  [sg.Button('Next', key='-NEXT-BUTTON-')]
+                  [sg.Text('Please select target folder', key='-FOLDER-SELECT-MSG-')]
                   ]
+
+        for cp in self.custom_parameters:
+            if cp['type'] == 'combo':
+                cps = [sg.Text('{}: '.format(cp['name'])), sg.Combo(cp['values'], key = cp['name'])]
+            elif cp['type'] == 'text':
+                cps = [sg.Text('{}: '.format(cp['name'])), sg.InputText(key = cp['name'])]
+            elif cp['type'] == 'checkbox':
+                cps = [sg.Text('{}: '.format(cp['name'])), sg.Checkbox('', key = cp['name'])]
+            else:
+                raise ValueError('Undefined type is used as custom parameters')
+
+            layout.append(cps)
+
+        layout.append([sg.Button('Next', key='-NEXT-BUTTON-')])
         window = sg.Window(title, layout)
 
         while True:
@@ -27,28 +40,29 @@ class FileOperatorGui(object):
                     window['-FOLDER-SELECT-MSG-'].update('Click Next')
             elif event == '-NEXT-BUTTON-':
                 if os.path.exists(values['-SELECTED-FOLDER-']):
-                    self.file_select_window(values['-SELECTED-FOLDER-'])
+                    self.file_select_window(values['-SELECTED-FOLDER-'], [{x['name']:values[x['name']]} for x in self.custom_parameters])
 
         window.close()
 
-    def file_select_window(self, selected_folder, title='File Select'):
-        s_window = _SelectWindowClass(title, selected_folder, self.run_command)
+    def file_select_window(self, selected_folder, custom_parameters=[], title='File Select'):
+        s_window = _SelectWindowClass(title, selected_folder, custom_parameters, self.run_command)
         s_window.open_new_window()
 
         while True:
             if s_window.event_handler() == 'Finish':
                 break
         s_window.close()
-        
+
     def run_command(self, values):
         raise NotImplementedError
 
 class _SelectWindowClass(object):
     PROGRESS_BAR_MAX = 1000
 
-    def __init__(self, title, selected_folder, run_command):
+    def __init__(self, title, selected_folder, custom_parameters, run_command):
         self.title = title
         self.selected_folder = '{}/'.format(selected_folder)
+        self.custom_parameters = custom_parameters
         self.window = None
         self.allfiles = []
         for cur, d, files in os.walk(self.selected_folder):
@@ -120,6 +134,7 @@ class _SelectWindowClass(object):
         
         v = {}
         v['selected files'] = selected_files
+        v['custom parameters'] = self.custom_parameters
         sfl = len(v['selected files'])
 
         for i, f in enumerate(v['selected files'], start=1):
