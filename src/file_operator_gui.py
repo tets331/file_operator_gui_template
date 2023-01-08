@@ -45,7 +45,7 @@ class FileOperatorGui(object):
         window.close()
 
     def file_select_window(self, selected_folder, custom_parameters=[], title='File Select'):
-        s_window = _SelectWindowClass(title, selected_folder, custom_parameters, self.run_command)
+        s_window = _SelectWindowClass(title, selected_folder, custom_parameters, self.custom_filter, self.run_command)
         s_window.open_new_window()
 
         while True:
@@ -53,13 +53,16 @@ class FileOperatorGui(object):
                 break
         s_window.close()
 
+    def custom_filter(self, filename):
+        return True
+
     def run_command(self, values):
         raise NotImplementedError
 
 class _SelectWindowClass(object):
     PROGRESS_BAR_MAX = 1000
 
-    def __init__(self, title, selected_folder, custom_parameters, run_command):
+    def __init__(self, title, selected_folder, custom_parameters, custom_condition, run_command):
         self.title = title
         self.selected_folder = '{}/'.format(selected_folder)
         self.custom_parameters = custom_parameters
@@ -70,6 +73,7 @@ class _SelectWindowClass(object):
         self.allfiles.sort()
         self.filters = {'value':'', 'case':False}
         self.exfilters = {'value':'', 'case':False}
+        self.custom_condition = custom_condition
         self.run_command = run_command
 
     def open_new_window(self, size=(600, 600)):
@@ -192,5 +196,7 @@ class _SelectWindowClass(object):
             flags = re.IGNORECASE if self.exfilters['case'] == False else 0
             for fltr in self.exfilters['value'].split():
                 filtered_files =  [x for x in filtered_files if not re.search(fltr, x, flags=flags)]
-                        
+
+        filtered_files = [x for x in filtered_files if self.custom_condition(x)]
+            
         return filtered_files
